@@ -18,19 +18,27 @@
     "use strict";
 
     var StorageService = function() {
-        var setObject = function(key, value) {
-            localStorage.setItem(key, JSON.stringify(value));
-        };
+	var setObject = () => null;
+	var getObject  = () => null;
+	var isSupported = () => false;
 
-        var getObject = function(key) {
-            var value = localStorage.getItem(key);
-            // if(value) return parsed JSON else undefined
-            return value && JSON.parse(value);
-        };
-
-        var isSupported = function() {
-            return typeof (Storage) !== "undefined";
-        };
+	// Set storage service functions
+	if (typeof (localStorage) !== "undefined") {
+            console.log("Using local storage");
+            getObject = (key) => {
+		var value = localStorage.getItem(key);
+		// if(value) return parsed JSON else undefined
+		return value && JSON.parse(value);
+            };
+            setObject = (key, value) => {
+		localStorage.setItem(key, JSON.stringify(value));
+		return;
+            };
+            isSupported = () => true;
+	} else {
+            console.warn("Using no storage");
+            isSupported = () => false;
+	}
 
         // exposed functions
         return {
@@ -153,7 +161,7 @@
                     $.mobile.navigate('#main');
                 } else {
                     $('#keySecret').focus();
-		}
+                }
             });
 
             $('#addKeyCancel').click(function() {
@@ -162,11 +170,19 @@
 
             var clearAddFields = function() {
                 $('#keyAccount').val('');
-		        $('#keySecret').val('');
+                        $('#keySecret').val('');
             };
 
             $('#edit').click(function() { toggleEdit(); });
             $('#export').click(function() { exportAccounts(); });
+            $('#import').click(function() {
+                console.log("Import clicked");
+                $('#import-file').click();
+            });
+            $('#import-file').change(function(evt) {
+                console.log("Import file value changed", evt);
+                importAccounts(evt);
+            });
         };
 
         var updateKeys = function() {
@@ -181,7 +197,7 @@
                 var accName = $('<p>').text(account.name).html();  // print as-is
                 var detLink = $('<span class="secret"><h3>' + key + '</h3>' + accName + '</span>');
                 var accElem = $('<li data-icon="false">').append(detLink);
- 
+
                 if(editingEnabled) {
                     var delLink = $('<p class="ui-li-aside"><a class="ui-btn-icon-notext ui-icon-delete" href="#"></a></p>');
                     delLink.click(function () {
@@ -211,6 +227,27 @@
             var blob = new Blob([accounts], {type: 'text/plain;charset=utf-8'});
 
             saveAs(blob, 'gauth-export.json');
+        };
+
+        var importAccounts = function(evt) {
+            console.log("Starting import");
+            const files = evt.target.files;
+            console.log("Got", files.length, "files");
+            if (files.length === 0) {
+                window.alert("Please select a file to upload.");
+                return;
+            }
+            if (files.length > 1) {
+                window.alert("Please select one file to upload.")
+                return;
+            }
+            const text = files[0].text();
+            console.log("JSON text is", text);
+            const data = JSON.parse(text);
+            console.log("New account data is", data);
+            storageService.setObject('accounts', data);
+
+            updateKeys();
         };
 
         var deleteAccount = function(index) {
