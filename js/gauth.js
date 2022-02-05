@@ -204,6 +204,9 @@
                         deleteAccount(index);
                     });
                     accElem.append(delLink);
+                } else {
+		    // TODO: add a button effect and/or toast indicating what value was copied.
+		    accElem.click(async function () { await navigator.clipboard.writeText(key); });
                 }
 
                 // Add HTML element
