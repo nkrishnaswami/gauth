@@ -14,23 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
 (function(exports) {
     "use strict";
 
     var StorageService = function() {
-	var setObject = () => null;
-	var getObject  = () => null;
+	var setObject = async () => null;
+	var getObject  = async () => null;
 	var isSupported = () => false;
 
 	// Set storage service functions
 	if (typeof (localStorage) !== "undefined") {
             console.log("Using local storage");
-            getObject = (key) => {
+            getObject = async (key) => {
 		var value = localStorage.getItem(key);
 		// if(value) return parsed JSON else undefined
 		return value && JSON.parse(value);
             };
-            setObject = (key, value) => {
+            setObject = async (key, value) => {
 		localStorage.setItem(key, JSON.stringify(value));
 		return;
             };
@@ -129,19 +130,19 @@
             keyUtilities = null,
             editingEnabled = false;
 
-        var init = function() {
+        var init = async function() {
             storageService = new StorageService();
             keyUtilities = new KeyUtilities(jsSHA);
 
             // Check if local storage is supported
             if (storageService.isSupported()) {
-                if (!storageService.getObject('accounts')) {
+                if (!await storageService.getObject('accounts')) {
                     //addAccount('alice@google.com (demo account)', 'JBSWY3DPEHPK3PXP');
-                    storageService.setObject('accounts', []);
-                    toggleEdit();
+                    await storageService.setObject('accounts', []);
+                    await toggleEdit();
                 }
 
-                updateKeys();
+                await updateKeys();
                 setInterval(timerTick, 1000);
             } else {
                 // No support for localStorage
@@ -150,13 +151,13 @@
             }
 
             // Bind to keypress event for the input
-            $('#addKeyButton').click(function() {
+            $('#addKeyButton').click(async function() {
                 var name = $('#keyAccount').val();
                 var secret = $('#keySecret').val();
                 // remove spaces from secret
                 secret = secret.replace(/ /g, '');
                 if(secret !== '') {
-                    addAccount(name, secret);
+                    await addAccount(name, secret);
                     clearAddFields();
                     $.mobile.navigate('#main');
                 } else {
@@ -173,24 +174,24 @@
                         $('#keySecret').val('');
             };
 
-            $('#edit').click(function() { toggleEdit(); });
-            $('#export').click(function() { exportAccounts(); });
+            $('#edit').click(async function() { await toggleEdit(); });
+            $('#export').click(async function() { await exportAccounts(); });
             $('#import').click(function() {
                 console.log("Import clicked");
                 $('#import-file').click();
             });
-            $('#import-file').change(function(evt) {
+            $('#import-file').change(async function(evt) {
                 console.log("Import file value changed", evt);
-                importAccounts(evt);
+                await importAccounts(evt);
             });
         };
 
-        var updateKeys = function() {
+        var updateKeys = async function() {
             var accountList = $('#accounts');
             // Remove all except the first line
             accountList.find("li:gt(0)").remove();
 
-            $.each(storageService.getObject('accounts'), function (index, account) {
+            $.each(await storageService.getObject('accounts'), function (index, account) {
                 var key = keyUtilities.generate(account.secret);
 
                 // Construct HTML
@@ -215,24 +216,24 @@
             accountList.listview().listview('refresh');
         };
 
-        var toggleEdit = function() {
+        var toggleEdit = async function() {
             editingEnabled = !editingEnabled;
             if(editingEnabled) {
                 $('#addButton').show();
             } else {
                 $('#addButton').hide();
             }
-            updateKeys();
+            await updateKeys();
         };
 
-        var exportAccounts = function() {
-            var accounts = JSON.stringify(storageService.getObject('accounts'));
+        var exportAccounts = async function() {
+            var accounts = JSON.stringify(await storageService.getObject('accounts'));
             var blob = new Blob([accounts], {type: 'text/plain;charset=utf-8'});
 
             saveAs(blob, 'gauth-export.json');
         };
 
-        var importAccounts = function(evt) {
+        var importAccounts = async function(evt) {
             console.log("Starting import");
             const files = evt.target.files;
             console.log("Got", files.length, "files");
@@ -244,25 +245,25 @@
                 window.alert("Please select one file to upload.")
                 return;
             }
-            const text = files[0].text();
+            const text = await files[0].text();
             console.log("JSON text is", text);
             const data = JSON.parse(text);
             console.log("New account data is", data);
-            storageService.setObject('accounts', data);
+            await storageService.setObject('accounts', data);
 
-            updateKeys();
+            await updateKeys();
         };
 
-        var deleteAccount = function(index) {
+        var deleteAccount = async function(index) {
             // Remove object by index
-            var accounts = storageService.getObject('accounts');
+            var accounts = await storageService.getObject('accounts');
             accounts.splice(index, 1);
-            storageService.setObject('accounts', accounts);
+            await storageService.setObject('accounts', accounts);
 
-            updateKeys();
+            await updateKeys();
         };
 
-        var addAccount = function(name, secret) {
+        var addAccount = async function(name, secret) {
             if(secret === '') {
                 // Bailout
                 return false;
@@ -275,25 +276,25 @@
             };
 
             // Persist new object
-            var accounts = storageService.getObject('accounts');
+            var accounts = await storageService.getObject('accounts');
             if (!accounts) {
                 // if undefined create a new array
                 accounts = [];
             }
             accounts.push(account);
-            storageService.setObject('accounts', accounts);
+            await storageService.setObject('accounts', accounts);
 
-            updateKeys();
-            toggleEdit();
+            await updateKeys();
+            await toggleEdit();
 
             return true;
         };
 
-        var timerTick = function() {
+        var timerTick = async function() {
             var epoch = Math.round(new Date().getTime() / 1000.0);
             var countDown = 30 - (epoch % 30);
             if (epoch % 30 === 0) {
-                updateKeys();
+                await updateKeys();
             }
             $('#updatingIn').text(countDown);
         };
